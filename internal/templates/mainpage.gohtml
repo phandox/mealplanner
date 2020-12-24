@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mealplanner Application</title>
+</head>
+<body>
+<table>
+    <tr>
+        <td></td>
+        {{range $day := .Days -}}
+            <td>{{- $day -}}</td>
+        {{- end}}
+    </tr>
+    {{range $dish := .MealTypes -}}
+    <tr>
+        <td>{{- $dish -}}</td>
+    </tr>
+    {{- end }}
+</table>
+
+</body>
+</html>

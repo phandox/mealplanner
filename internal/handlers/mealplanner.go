@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"html/template"
+	"log"
 	"net/http"
+	"path/filepath"
 )
 
 type Meal struct {
@@ -26,5 +29,28 @@ func GetMeals(db *MealDB) func(http.ResponseWriter, *http.Request) {
 			writer.WriteHeader(http.StatusOK)
 			_, _ = writer.Write(body)
 		}
+	}
+}
+
+type MainPageTable struct {
+	Days      []string
+	MealTypes []string
+}
+
+func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http.Request) {
+	tp := filepath.Join("internal", "templates", tmpl)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		t, err := template.New(tmpl).ParseFiles(tp)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatalf("can not initialize template: %s", err)
+		}
+		err = t.Execute(w, th)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Fatalf("problem rendering template: %s", err)
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
