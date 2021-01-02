@@ -16,7 +16,7 @@ func main() {
 	db.Add("delicious meal 2")
 	m := http.NewServeMux()
 	m.HandleFunc("/meals", handlers.GetMeals(&db))
-	m.HandleFunc("/", handlers.MainPage(tableHeader, "mainpage.gohtml"))
+	m.HandleFunc("/", handlers.MainPage(tableHeader, "internal/templates/mainpage.gohtml"))
 	s := http.Server{
 		Addr:              "127.0.0.1:8080",
 		Handler:           m,
