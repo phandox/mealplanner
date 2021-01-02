@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"html/template"
-	"log"
 	"net/http"
 	"path/filepath"
 )
@@ -44,13 +43,14 @@ func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http
 		t, err := template.New(tmpl).ParseFiles(tp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatalf("can not initialize template: %s", err)
+			return
+			//log.Fatalf("can not initialize template: %s", err)
 		}
 		err = t.Execute(w, th)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatalf("problem rendering template: %s", err)
+			return
+			//log.Fatalf("problem rendering template: %s", err)
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }

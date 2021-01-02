@@ -54,3 +54,55 @@ func TestGetMeals(t *testing.T) {
 		})
 	}
 }
+
+func TestMainPageTemplateRender(t *testing.T) {
+	tests := []struct {
+		name    string
+		th      MainPageTable
+		tpath   string
+		expcode int
+	}{
+		{
+			"empty table header",
+			MainPageTable{
+				Days:      nil,
+				MealTypes: nil,
+			},
+			"mainpage.gohtml",
+			http.StatusInternalServerError,
+		},
+		{
+			"not full template",
+			MainPageTable{
+				Days:      []string{"Monday", "Tuesday"},
+				MealTypes: nil,
+			},
+			"mainpage.gohtml",
+			http.StatusInternalServerError,
+		},
+		{
+			"filled template",
+			MainPageTable{
+				Days:      []string{"Monday", "Tuesday"},
+				MealTypes: []string{"Breakfast", "Snack"},
+			},
+			"mainpage.gohtml",
+			http.StatusOK,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "/", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rr := httptest.NewRecorder()
+			handler := http.HandlerFunc(MainPage(test.th, test.tpath))
+			handler.ServeHTTP(rr, req)
+
+			if status := rr.Code; rr.Code != test.expcode {
+				t.Errorf("handler returned wrong status code: got %v want %v", status, test.expcode)
+			}
+		})
+	}
+}
