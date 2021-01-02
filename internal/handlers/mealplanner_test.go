@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 )
+
+const TMPLDIR = "../templates/"
 
 func TestGetMeals(t *testing.T) {
 	tests := []struct {
@@ -63,13 +66,22 @@ func TestMainPageTemplateRender(t *testing.T) {
 		expcode int
 	}{
 		{
+			"bad path",
+			MainPageTable{
+				Days:      nil,
+				MealTypes: nil,
+			},
+			filepath.Join(TMPLDIR, "bad_path.gohtml"),
+			http.StatusInternalServerError,
+		},
+		{
 			"empty table header",
 			MainPageTable{
 				Days:      nil,
 				MealTypes: nil,
 			},
-			"mainpage.gohtml",
-			http.StatusInternalServerError,
+			filepath.Join(TMPLDIR, "mainpage.gohtml"),
+			http.StatusOK,
 		},
 		{
 			"not full template",
@@ -77,8 +89,8 @@ func TestMainPageTemplateRender(t *testing.T) {
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: nil,
 			},
-			"mainpage.gohtml",
-			http.StatusInternalServerError,
+			filepath.Join(TMPLDIR, "mainpage.gohtml"),
+			http.StatusOK,
 		},
 		{
 			"filled template",
@@ -86,7 +98,7 @@ func TestMainPageTemplateRender(t *testing.T) {
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: []string{"Breakfast", "Snack"},
 			},
-			"mainpage.gohtml",
+			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
 		},
 	}

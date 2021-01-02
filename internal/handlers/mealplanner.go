@@ -37,20 +37,24 @@ type MainPageTable struct {
 }
 
 func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http.Request) {
-	tp := filepath.Join("internal", "templates", tmpl)
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		t, err := template.New(tmpl).ParseFiles(tp)
+		name := filepath.Base(tmpl)
+		tp, err := filepath.Abs(tmpl)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-			//log.Fatalf("can not initialize template: %s", err)
+		}
+		t, err := template.New(name).ParseFiles(tp)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		err = t.Execute(w, th)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-			//log.Fatalf("problem rendering template: %s", err)
 		}
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 }
