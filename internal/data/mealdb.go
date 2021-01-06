@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"io"
 	"log"
+	"strings"
 )
 
 type MealsDB struct {
@@ -43,4 +44,8 @@ func (db MealsDB) GetMeal(kind string) *Meal {
 type Meal struct {
 	Name string
 	Kind string
+}
+
+func (m Meal) IsKind(kind string) bool {
+	return strings.ToLower(kind) == m.Kind
 }

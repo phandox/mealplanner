@@ -2,20 +2,28 @@ package main
 
 import (
 	"fmt"
+	"github.com/phandox/mealplanner/internal/data"
 	"github.com/phandox/mealplanner/internal/handlers"
+	"log"
 	"net/http"
+	"os"
 )
 
+const mealsPath = "internal/data/meals.csv"
+
 func main() {
+	fd, err := os.Open(mealsPath)
+	if err != nil {
+		log.Fatal("can't open data source")
+	}
+	defer fd.Close()
+	db := data.NewMealsDB(fd)
 	tableHeader := handlers.MainPageTable{
 		Days:      []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"},
 		MealTypes: []string{"Breakfast", "Snack", "Lunch", "Snack", "Dinner"},
+		Food:      populateMealPlan(db),
 	}
-	db := handlers.MealDB{}
-	db.Add("delicious meal 1")
-	db.Add("delicious meal 2")
 	m := http.NewServeMux()
-	m.HandleFunc("/meals", handlers.GetMeals(&db))
 	m.HandleFunc("/", handlers.MainPage(tableHeader, "internal/templates/mainpage.gohtml"))
 	s := http.Server{
 		Addr:              "127.0.0.1:8080",
@@ -28,4 +36,13 @@ func main() {
 		MaxHeaderBytes:    0,
 	}
 	fmt.Print(s.ListenAndServe())
+}
+
+func populateMealPlan(db data.MealsDB) []*data.Meal {
+	var meals []*data.Meal
+	meals = append(meals, db.GetMeal("breakfast"))
+	meals = append(meals, db.GetMeal("lunch"))
+	meals = append(meals, db.GetMeal("dinner"))
+	meals = append(meals, db.GetMeal("snack"))
+	return meals
 }
