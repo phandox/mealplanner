@@ -10,7 +10,8 @@ import (
 type MainPageTable struct {
 	Days      []string
 	MealTypes []string
-	Food      []*data.Meal
+	Food      map[string][]data.Meal
+	Fm        template.FuncMap
 }
 
 func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,7 @@ func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		t, err := template.New(name).ParseFiles(tp)
+		t, err := template.New(name).Funcs(th.Fm).ParseFiles(tp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

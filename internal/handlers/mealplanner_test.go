@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"github.com/phandox/mealplanner/internal/data"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +33,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      nil,
 				MealTypes: nil,
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -39,6 +48,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: nil,
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -48,6 +63,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: []string{"Breakfast", "Snack"},
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -64,7 +85,7 @@ func TestMainPageTemplateRender(t *testing.T) {
 			handler.ServeHTTP(rr, req)
 
 			if status := rr.Code; rr.Code != test.expcode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, test.expcode)
+				t.Errorf("handler returned wrong status code: got %v want %v. Error: %q", status, test.expcode, rr.Body)
 			}
 		})
 	}

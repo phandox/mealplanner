@@ -14,6 +14,12 @@ const testData = `"name","kind"
 "dinner 1","dinner"
 "snack 1","snack"
 `
+const testDataMulti = `"name","kind"
+"lunch 1","lunch"
+"lunch 2","lunch"
+"dinner 1","dinner"
+"snack 1","snack"
+`
 
 func loadMeals(t *testing.T, s string) []Meal {
 	t.Helper()
@@ -112,6 +118,46 @@ func TestGetMeal(t *testing.T) {
 
 			if got.Kind != test.want.Kind {
 				t.Errorf("got %v != want %v", got.Kind, test.want.Kind)
+			}
+		})
+	}
+}
+
+func TestMeals(t *testing.T) {
+	tests := []struct {
+		name string
+		kind string
+		want int
+		data string
+	}{
+		{
+			"single meal in DB",
+			"breakfast",
+			1,
+			testData,
+		},
+		{
+			"two meals of type in DB",
+			"lunch",
+			2,
+			testDataMulti,
+		},
+		{
+			"mismatch cases of kind",
+			"LUnch",
+			2,
+			testDataMulti,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db := MealsDB{
+				storage: "",
+				data:    loadMeals(t, test.data),
+			}
+			got := db.Meals(test.kind)
+			if len(got) != test.want {
+				t.Errorf("got %v != want %v elements of %s kind", len(got), test.want, test.kind)
 			}
 		})
 	}

@@ -41,6 +41,16 @@ func (db MealsDB) GetMeal(kind string) *Meal {
 	return nil
 }
 
+func (db MealsDB) Meals(kind string) []Meal {
+	var r []Meal
+	for _, m := range db.data {
+		if strings.ToLower(kind) == strings.ToLower(m.Kind) {
+			r = append(r, m)
+		}
+	}
+	return r
+}
+
 type Meal struct {
 	Name string
 	Kind string
