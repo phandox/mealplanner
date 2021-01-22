@@ -1,62 +1,16 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"github.com/phandox/mealplanner/internal/data"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 const TMPLDIR = "../templates/"
-
-func TestGetMeals(t *testing.T) {
-	tests := []struct {
-		name   string
-		status int
-		db     *MealDB
-	}{
-		{
-			"no meals stored",
-			http.StatusOK,
-			&MealDB{},
-		},
-		{
-			"meals stored",
-			http.StatusOK,
-			&MealDB{m: []Meal{{Name: "delicious meal 1"}, {Name: "delicious meal 2"}}},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodGet, "/meals", nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(GetMeals(test.db))
-
-			handler.ServeHTTP(rr, req)
-
-			if status := rr.Code; status != test.status {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, test.status)
-			}
-
-			body, err := json.Marshal(test.db.m)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if bytes.Compare(rr.Body.Bytes(), body) != 0 {
-				t.Errorf(
-					"handler returned unexpected body: got %v want %v",
-					rr.Body.String(),
-					body,
-				)
-			}
-		})
-	}
-}
 
 func TestMainPageTemplateRender(t *testing.T) {
 	tests := []struct {
@@ -79,6 +33,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      nil,
 				MealTypes: nil,
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -88,6 +48,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: nil,
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -97,6 +63,12 @@ func TestMainPageTemplateRender(t *testing.T) {
 			MainPageTable{
 				Days:      []string{"Monday", "Tuesday"},
 				MealTypes: []string{"Breakfast", "Snack"},
+				Fm: template.FuncMap{
+					"lower": strings.ToLower,
+					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
+						return nil, nil
+					},
+				},
 			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
@@ -113,7 +85,7 @@ func TestMainPageTemplateRender(t *testing.T) {
 			handler.ServeHTTP(rr, req)
 
 			if status := rr.Code; rr.Code != test.expcode {
-				t.Errorf("handler returned wrong status code: got %v want %v", status, test.expcode)
+				t.Errorf("handler returned wrong status code: got %v want %v. Error: %q", status, test.expcode, rr.Body)
 			}
 		})
 	}

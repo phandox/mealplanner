@@ -1,20 +1,32 @@
+{{ $dishes := .MealTypes }}
+{{ $foods := .Food }}
+{{ $days := .Days }}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Mealplanner Application</title>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+        }
+    </style>
 </head>
 <body>
 <table>
     <tr>
         <td></td>
-        {{range $day := .Days -}}
-            <td>{{- $day -}}</td>
+        {{range $d := $days -}}
+            <th>{{- $d -}}</th>
         {{- end}}
     </tr>
-    {{range $dish := .MealTypes -}}
+    {{range $dish := $dishes -}}
     <tr>
-        <td>{{- $dish -}}</td>
+        <th>{{- $dish -}}</th>
+        {{ $k := lower $dish }}
+        {{range $d := $days -}}
+        <td>{{chooseMeal $foods $k}}</td>
+        {{- end }}
     </tr>
     {{- end }}
 </table>

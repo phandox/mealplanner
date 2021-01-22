@@ -1,39 +1,17 @@
 package handlers
 
 import (
-	"encoding/json"
+	"github.com/phandox/mealplanner/internal/data"
 	"html/template"
 	"net/http"
 	"path/filepath"
 )
 
-type Meal struct {
-	Name string `json:"name"`
-}
-
-type MealDB struct {
-	m []Meal
-}
-
-func (mdb *MealDB) Add(name string) {
-	mdb.m = append(mdb.m, Meal{Name: name})
-}
-
-func GetMeals(db *MealDB) func(http.ResponseWriter, *http.Request) {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		body, err := json.Marshal(db.m)
-		if err != nil {
-			writer.WriteHeader(http.StatusInternalServerError)
-		} else {
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write(body)
-		}
-	}
-}
-
 type MainPageTable struct {
 	Days      []string
 	MealTypes []string
+	Food      map[string][]data.Meal
+	Fm        template.FuncMap
 }
 
 func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http.Request) {
@@ -41,17 +19,17 @@ func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http
 		name := filepath.Base(tmpl)
 		tp, err := filepath.Abs(tmpl)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		t, err := template.New(name).ParseFiles(tp)
+		t, err := template.New(name).Funcs(th.Fm).ParseFiles(tp)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		err = t.Execute(w, th)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
