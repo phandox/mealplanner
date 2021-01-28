@@ -1,10 +1,10 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/phandox/mealplanner/internal/data"
 	"github.com/phandox/mealplanner/internal/handlers"
+	"github.com/phandox/mealplanner/internal/picker"
 	"html/template"
 	"log"
 	"math/rand"
@@ -24,14 +24,14 @@ func main() {
 	}
 	defer fd.Close()
 	db := data.NewMealsDB(fd)
+	p := picker.NewPicker(&db, picker.DefaultPeople)
 	fm := template.FuncMap{
-		"chooseMeal": ChooseMeal,
-		"lower":      strings.ToLower,
+		"lower": strings.ToLower,
 	}
 	tableHeader := handlers.MainPageTable{
 		Days:      []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"},
 		MealTypes: []string{"Breakfast", "Snack", "Lunch", "Snack", "Dinner"},
-		Food:      populateMealPlan(db),
+		Food:      populateMealPlan(p),
 		Fm:        fm,
 	}
 	m := http.NewServeMux()
@@ -49,21 +49,11 @@ func main() {
 	fmt.Print(s.ListenAndServe())
 }
 
-func populateMealPlan(db data.MealsDB) map[string][]data.Meal {
+func populateMealPlan(p *picker.Picker) map[string][]data.Meal {
 	var r = make(map[string][]data.Meal)
-	r["breakfast"] = db.Meals("breakfast")
-	r["lunch"] = db.Meals("lunch")
-	r["dinner"] = db.Meals("dinner")
-	r["snack"] = db.Meals("snack")
+	r["breakfast"], _ = p.Plan("breakfast", 7)
+	r["lunch"], _ = p.PlanLunches(7)
+	r["dinner"], _ = p.Plan("dinner", 7)
+	r["snack"], _ = p.Plan("snack", 7)
 	return r
-}
-
-// business logic function
-func ChooseMeal(food map[string][]data.Meal, k string) (string, error) {
-	r, ok := food[k]
-	if !ok {
-		return "", errors.New("meal kind not found")
-	}
-	i := rand.Intn(len(r))
-	return r[i].Name, nil
 }

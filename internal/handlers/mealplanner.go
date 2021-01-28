@@ -14,6 +14,10 @@ type MainPageTable struct {
 	Fm        template.FuncMap
 }
 
+func (t MainPageTable) FetchMeals(kind string) []data.Meal {
+	return t.Food[kind]
+}
+
 func MainPage(th MainPageTable, tmpl string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := filepath.Base(tmpl)

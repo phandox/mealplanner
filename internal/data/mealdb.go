@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -24,9 +25,14 @@ func NewMealsDB(r io.Reader) MealsDB {
 	}
 	var m []Meal
 	for _, r := range recs {
+		n, err := strconv.Atoi(r[2])
+		if err != nil {
+			panic(err)
+		}
 		m = append(m, Meal{
-			Name: r[0],
-			Kind: r[1],
+			Name:     r[0],
+			Kind:     r[1],
+			Portions: n,
 		})
 	}
 	return MealsDB{data: m}
@@ -52,8 +58,9 @@ func (db MealsDB) Meals(kind string) []Meal {
 }
 
 type Meal struct {
-	Name string
-	Kind string
+	Name     string
+	Kind     string
+	Portions int
 }
 
 func (m Meal) IsKind(kind string) bool {
