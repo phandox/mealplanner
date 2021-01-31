@@ -1,8 +1,9 @@
 package picker
 
 import (
-	"github.com/phandox/mealplanner/internal/data"
 	"math/rand"
+
+	"github.com/phandox/mealplanner/internal/data"
 )
 
 const DefaultPeople = 2
@@ -24,7 +25,7 @@ func (p Picker) Plan(kind string, days int) ([]data.Meal, error) {
 func pickFood(food []data.Meal, minPortions int, maxPortions int) data.Meal {
 	var daysOk, portionsOk bool
 	var m data.Meal
-	for daysOk != true && portionsOk != true {
+	for daysOk != true || portionsOk != true {
 		daysOk = false
 		portionsOk = false
 		m = food[rand.Intn(len(food))]

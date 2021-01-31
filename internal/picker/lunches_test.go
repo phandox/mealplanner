@@ -1,11 +1,12 @@
 package picker
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/phandox/mealplanner/internal/data"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
-	"testing"
 )
 
 const testDataSevenDays = `"name","kind","portions"
@@ -94,7 +95,7 @@ func TestPicker_PlanLunchesLogic(t *testing.T) {
 			p := NewPicker(&test.db, test.people)
 			got, err := p.PlanLunches(7)
 			require.NoError(t, err)
-			assert.Truef(t, checkPortions(got, 1, 7), "Portions check: got %v", got)
+			assert.Truef(t, checkPortions(got, 2, 7), "Portions check: got %v", got)
 			assert.Truef(t, checkMealBoundary(got, test.people), "Boundary check: got %v", got)
 		})
 	}
