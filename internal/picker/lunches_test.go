@@ -18,6 +18,28 @@ const testDataSevenDays = `"name","kind","portions"
 "l6","lunch","2"
 "l7","lunch","4"
 `
+const testDataNotEnoughPortions = `"name","kind","portions"
+"l1","lunch","2"
+"l2","lunch","2"
+"l3","lunch","2"
+"l4","lunch","2"
+"l5","lunch","2"
+"l6","lunch","2"
+"l7","lunch","2"
+`
+const testDataBoundaryOverflow = `"name","kind","portions"
+"l1","lunch","3"
+"l2","lunch","3"
+"l3","lunch","3"
+"l4","lunch","3"
+"l5","lunch","3"
+"l6","lunch","3"
+"l7","lunch","3"
+`
+const testDataNotEnoughUniqueFood = `"name","kind","portions"
+"l1","lunch","4"
+"l2","lunch","4"
+`
 
 func TestPlanLunchesMultiDays(t *testing.T) {
 	tests := []struct {
@@ -97,6 +119,38 @@ func TestPicker_PlanLunchesLogic(t *testing.T) {
 			require.NoError(t, err)
 			assert.Truef(t, checkPortions(got, 2, 7), "Portions check: got %v", got)
 			assert.Truef(t, checkMealBoundary(got, test.people), "Boundary check: got %v", got)
+		})
+	}
+}
+
+func TestPicker_PlanLunchesFailures(t *testing.T) {
+	tests := []struct {
+		name   string
+		people int
+		db     data.MealsDB
+	}{
+		{
+			"No food with minimum portions available",
+			DefaultPeople,
+			data.NewMealsDB(strings.NewReader(testDataNotEnoughPortions)),
+		},
+		{
+			"can not satisfy boundary",
+			DefaultPeople,
+			data.NewMealsDB(strings.NewReader(testDataBoundaryOverflow)),
+		},
+		{
+			"not enough unique food",
+			DefaultPeople,
+			data.NewMealsDB(strings.NewReader(testDataNotEnoughUniqueFood)),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := NewPicker(&test.db, test.people)
+			got, err := p.PlanLunches(7)
+			assert.Error(t, err)
+			assert.Nil(t, got)
 		})
 	}
 }
