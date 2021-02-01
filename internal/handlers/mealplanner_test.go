@@ -1,75 +1,52 @@
 package handlers
 
 import (
-	"github.com/phandox/mealplanner/internal/data"
-	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/phandox/mealplanner/internal/picker"
+
+	"github.com/phandox/mealplanner/internal/data"
 )
 
 const TMPLDIR = "../templates/"
 
+const testDataSevenDays = `"name","kind","portions"
+"l1","lunch","2"
+"l2","breakfast","4"
+"l3","lunch","6"
+"l4","dinner","2"
+"l5","snack","6"
+"l6","snack","2"
+"l7","lunch","4"
+`
+
 func TestMainPageTemplateRender(t *testing.T) {
 	tests := []struct {
 		name    string
-		th      MainPageTable
 		tpath   string
 		expcode int
 	}{
 		{
 			"bad path",
-			MainPageTable{
-				Days:      nil,
-				MealTypes: nil,
-			},
 			filepath.Join(TMPLDIR, "bad_path.gohtml"),
 			http.StatusInternalServerError,
 		},
 		{
 			"empty table header",
-			MainPageTable{
-				Days:      nil,
-				MealTypes: nil,
-				Fm: template.FuncMap{
-					"lower": strings.ToLower,
-					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
-						return nil, nil
-					},
-				},
-			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
 		},
 		{
 			"not full template",
-			MainPageTable{
-				Days:      []string{"Monday", "Tuesday"},
-				MealTypes: nil,
-				Fm: template.FuncMap{
-					"lower": strings.ToLower,
-					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
-						return nil, nil
-					},
-				},
-			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
 		},
 		{
 			"filled template",
-			MainPageTable{
-				Days:      []string{"Monday", "Tuesday"},
-				MealTypes: []string{"Breakfast", "Snack"},
-				Fm: template.FuncMap{
-					"lower": strings.ToLower,
-					"chooseMeal": func(food map[string][]*data.Meal, k string) (*data.Meal, error) {
-						return nil, nil
-					},
-				},
-			},
 			filepath.Join(TMPLDIR, "mainpage.gohtml"),
 			http.StatusOK,
 		},
@@ -81,7 +58,9 @@ func TestMainPageTemplateRender(t *testing.T) {
 				t.Fatal(err)
 			}
 			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(MainPage(test.th, test.tpath))
+			db := data.NewMealsDB(strings.NewReader(testDataSevenDays))
+			p := picker.NewPicker(&db, 2)
+			handler := http.HandlerFunc(MainPage(test.tpath, p))
 			handler.ServeHTTP(rr, req)
 
 			if status := rr.Code; rr.Code != test.expcode {

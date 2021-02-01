@@ -1,5 +1,5 @@
 {{ $dishes := .MealTypes }}
-{{ $foods := .Food }}
+{{ $table := . }}
 {{ $days := .Days }}
 <!DOCTYPE html>
 <html lang="en">
@@ -24,8 +24,9 @@
     <tr>
         <th>{{- $dish -}}</th>
         {{ $k := lower $dish }}
-        {{range $d := $days -}}
-        <td>{{chooseMeal $foods $k}}</td>
+        {{ $meal := $table.FetchMeals $k }}
+        {{range $m := $meal -}}
+        <td>{{ $m.Name }}</td>
         {{- end }}
     </tr>
     {{- end }}

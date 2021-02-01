@@ -4,21 +4,22 @@ import (
 	"encoding/csv"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
 
-const testData = `"name","kind"
-"lunch 1","lunch"
-"breakfast 1","breakfast"
-"dinner 1","dinner"
-"snack 1","snack"
+const testData = `"name","kind","portions"
+"lunch 1","lunch","4"
+"breakfast 1","breakfast","4"
+"dinner 1","dinner","4"
+"snack 1","snack","4"
 `
-const testDataMulti = `"name","kind"
-"lunch 1","lunch"
-"lunch 2","lunch"
-"dinner 1","dinner"
-"snack 1","snack"
+const testDataMulti = `"name","kind","portions"
+"lunch 1","lunch","4"
+"lunch 2","lunch","4"
+"dinner 1","dinner","4"
+"snack 1","snack","4"
 `
 
 func loadMeals(t *testing.T, s string) []Meal {
@@ -34,9 +35,14 @@ func loadMeals(t *testing.T, s string) []Meal {
 	}
 	var m []Meal
 	for _, r := range rec {
+		n, err := strconv.Atoi(r[2])
+		if err != nil {
+			panic(err)
+		}
 		m = append(m, Meal{
-			Name: r[0],
-			Kind: r[1],
+			Name:     r[0],
+			Kind:     r[1],
+			Portions: n,
 		})
 	}
 	return m
