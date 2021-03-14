@@ -1,12 +1,11 @@
 package data
 
 import (
-	"encoding/csv"
-	"log"
-	"reflect"
-	"strconv"
-	"strings"
+	"context"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const testData = `"name","kind","portions"
@@ -22,149 +21,114 @@ const testDataMulti = `"name","kind","portions"
 "snack 1","snack","4"
 `
 
-func loadMeals(t *testing.T, s string) []Meal {
-	t.Helper()
-	d := csv.NewReader(strings.NewReader(s))
-	_, err := d.Read() // skip header
-	if err != nil {
-		log.Fatal(err)
-	}
-	rec, err := d.ReadAll()
-	if err != nil {
-		t.Fatal("can't read test data")
-	}
-	var m []Meal
-	for _, r := range rec {
-		n, err := strconv.Atoi(r[2])
-		if err != nil {
-			panic(err)
-		}
-		m = append(m, Meal{
-			Name:     r[0],
-			Kind:     r[1],
-			Portions: n,
-		})
-	}
-	return m
+type MockManager struct {
+	Calls  int
+	stored map[string]meal
 }
 
-func TestNewMealsDB(t *testing.T) {
+func (m *MockManager) Close() error {
+	return nil
+}
+
+func (m *MockManager) AddMeal(ctx context.Context, name string, portions int, kind string) error {
+	food := meal{name: name, portions: portions, kind: kind}
+	if _, ok := m.stored[food.name]; ok {
+		return errors.New("meal already stored")
+	}
+	m.stored[food.name] = food
+	m.Calls++
+	return nil
+}
+
+type meal struct {
+	name     string
+	kind     string
+	portions int
+}
+
+func TestAddMealToEmptyDB(t *testing.T) {
 	tests := []struct {
 		name string
+		m    meal
 		err  error
-		data string
 	}{
 		{
-			"load CSV data",
+			"add single meal",
+			meal{
+				name:     "meal1",
+				kind:     "lunch",
+				portions: 2,
+			},
 			nil,
-			testData,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			expDB := MealsDB{
-				data: loadMeals(t, test.data),
+			m := MockManager{
+				Calls:  0,
+				stored: map[string]meal{},
 			}
-			db := NewMealsDB(strings.NewReader(test.data))
-			switch test.err {
-			default:
-				if !reflect.DeepEqual(db.data, expDB.data) {
-					t.Errorf("got %v != want %v", db.data, expDB.data)
-				}
+			ctx := context.TODO()
+			err := m.AddMeal(ctx, test.m.name, test.m.portions, test.m.kind)
+			if test.err == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
 			}
 		})
 	}
 }
 
-func TestGetMeal(t *testing.T) {
+func TestAddMealMultipleTimes(t *testing.T) {
 	tests := []struct {
-		name string
-		kind string
-		want Meal
+		name     string
+		meals    []meal
+		expCalls int
 	}{
 		{
-			"get lunch meal",
-			"lunch",
-			Meal{
-				Kind: "lunch",
+			"add 2 different foods",
+			[]meal{
+				{
+					"meal1",
+					"lunch",
+					2,
+				},
+				{
+					"meal2",
+					"lunch",
+					2,
+				},
 			},
+			2,
 		},
 		{
-			"get breakfast meal",
-			"breakfast",
-			Meal{
-				Kind: "breakfast",
+			"add 2 same food",
+			[]meal{
+				{
+					"meal1",
+					"lunch",
+					2,
+				},
+				{
+					"meal1",
+					"lunch",
+					2,
+				},
 			},
-		},
-		{
-			"get snack meal",
-			"snack",
-			Meal{
-				Kind: "snack",
-			},
-		},
-		{
-			"get dinner meal",
-			"dinner",
-			Meal{
-				Kind: "dinner",
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			db := MealsDB{
-				data: loadMeals(t, testData),
-			}
-			got := db.GetMeal(test.kind)
-
-			if got == nil {
-				t.Fatal("unexpected failure: no meal returned")
-			}
-
-			if got.Kind != test.want.Kind {
-				t.Errorf("got %v != want %v", got.Kind, test.want.Kind)
-			}
-		})
-	}
-}
-
-func TestMeals(t *testing.T) {
-	tests := []struct {
-		name string
-		kind string
-		want int
-		data string
-	}{
-		{
-			"single meal in DB",
-			"breakfast",
 			1,
-			testData,
-		},
-		{
-			"two meals of type in DB",
-			"lunch",
-			2,
-			testDataMulti,
-		},
-		{
-			"mismatch cases of kind",
-			"LUnch",
-			2,
-			testDataMulti,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			db := MealsDB{
-				storage: "",
-				data:    loadMeals(t, test.data),
+			m := MockManager{
+				Calls:  0,
+				stored: map[string]meal{},
 			}
-			got := db.Meals(test.kind)
-			if len(got) != test.want {
-				t.Errorf("got %v != want %v elements of %s kind", len(got), test.want, test.kind)
+			ctx := context.TODO()
+			for _, f := range test.meals {
+				_ = m.AddMeal(ctx, f.name, f.portions, f.kind)
 			}
+			assert.Equal(t, test.expCalls, m.Calls)
 		})
 	}
 }
