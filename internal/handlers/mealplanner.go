@@ -12,10 +12,10 @@ import (
 
 func populateMealPlan(p *picker.Picker) map[string][]data.Meal {
 	var r = make(map[string][]data.Meal)
-	r["breakfast"], _ = p.Plan("breakfast", 7)
+	r["breakfast"], _ = p.PlanRandom("breakfast", 7)
 	r["lunch"], _ = p.PlanLunches(7)
-	r["dinner"], _ = p.Plan("dinner", 7)
-	r["snack"], _ = p.Plan("snack", 7)
+	r["dinner"], _ = p.PlanRandom("dinner", 7)
+	r["snack"], _ = p.PlanRandom("snack", 7)
 	return r
 }
 

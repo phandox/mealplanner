@@ -13,13 +13,15 @@ const DefaultPeople = 2
 type Picker struct {
 	db     data.Manager
 	people int
+	seed   int64
 }
 
-func NewPicker(db data.Manager, people int) *Picker {
-	return &Picker{db: db, people: people}
+func NewPicker(db data.Manager, people int, seed int64) *Picker {
+	rand.Seed(seed)
+	return &Picker{db: db, people: people, seed: seed}
 }
 
-func (p Picker) Plan(kind string, days int) ([]data.Meal, error) {
+func (p Picker) PlanRandom(kind string, days int) ([]data.Meal, error) {
 	f, err := p.db.GetMeals(context.TODO(), kind)
 	if err != nil {
 		return nil, err
@@ -47,15 +49,14 @@ func pickFood(food []data.Meal, minPortions int, maxPortions int, picked *[]bool
 			continue
 		}
 		m = food[idx]
-		if m.Portions() <= maxPortions {
+		if m.Portions <= maxPortions {
 			portionsOk = true
 		}
-		if m.Portions() >= minPortions {
+		if m.Portions >= minPortions {
 			daysOk = true
 		}
 		(*picked)[idx] = true
 		if portionsOk && daysOk {
-			(*picked)[idx] = true
 			return m, nil
 		}
 	}
@@ -76,8 +77,8 @@ func (p Picker) PlanLunches(days int) ([]data.Meal, error) {
 		if err != nil {
 			return nil, err
 		}
-		fill = fill + m.Portions()
-		for j := 0; j < m.Portions()/p.people && i < cap(week); j++ {
+		fill = fill + m.Portions
+		for j := 0; j < m.Portions/p.people && i < cap(week); j++ {
 			week[i] = m
 			i++
 		}

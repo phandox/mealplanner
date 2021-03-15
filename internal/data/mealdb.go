@@ -37,21 +37,9 @@ type Manager interface {
 }
 
 type Meal struct {
-	name     string
-	kind     string
-	portions int
-}
-
-func (m Meal) Name() string {
-	return m.name
-}
-
-func (m Meal) Kind() string {
-	return m.kind
-}
-
-func (m Meal) Portions() int {
-	return m.portions
+	Name     string
+	Kind     string
+	Portions int
 }
 
 type manager struct {
@@ -103,7 +91,7 @@ func (m *manager) GetMeals(ctx context.Context, kind string) ([]Meal, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var m Meal
-		if err = rows.Scan(&m.name, &m.kind, &m.portions); err != nil {
+		if err = rows.Scan(&m.Name, &m.Kind, &m.Portions); err != nil {
 			return nil, err
 		}
 		meals = append(meals, m)

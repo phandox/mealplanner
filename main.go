@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -20,7 +19,6 @@ const mealsPath = "internal/data/meals.csv"
 const defaultDb = "internal/data/meals.sqlite"
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	fd, err := os.Open(mealsPath)
 	if err != nil {
 		log.Fatal("can't open data source")
@@ -35,7 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p := picker.NewPicker(db, picker.DefaultPeople)
+	p := picker.NewPicker(db, picker.DefaultPeople, time.Now().UnixNano())
 	m := http.NewServeMux()
 	m.HandleFunc("/", handlers.MainPage("internal/templates/mainpage.gohtml", p))
 	s := http.Server{
