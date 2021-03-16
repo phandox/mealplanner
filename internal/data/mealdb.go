@@ -34,6 +34,7 @@ type Manager interface {
 	AddMeal(ctx context.Context, name string, portions string, kind string) error
 	GetMeals(ctx context.Context, kind string) ([]Meal, error)
 	LoadMeals(reader *csv.Reader) error
+	getDb() *sql.DB
 }
 
 type Meal struct {
@@ -54,6 +55,9 @@ func NewManager(dbpool *sql.DB) Manager {
 	return &manager{db: dbpool}
 }
 
+func (m *manager) getDb() *sql.DB {
+	return m.db
+}
 func (m *manager) Close() error {
 	return m.db.Close()
 }
