@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"io/ioutil"
@@ -56,6 +57,23 @@ func teardown(db *sql.DB, tmpDir string) {
 	}
 }
 
+func cleanDb(t *testing.T, db *sql.DB) {
+	t.Helper()
+	tx, err := db.BeginTx(context.TODO(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//goland:noinspection SqlWithoutWhere
+	_, execErr := tx.Exec("DELETE FROM meal;")
+	if execErr != nil {
+		_ = tx.Rollback()
+		t.Fatal(execErr)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func countRows(t *testing.T, db *sql.DB, table string) int {
 	t.Helper()
 	rows, err := db.Query("SELECT * FROM meal;", table)
@@ -90,8 +108,9 @@ func TestIntegration_LoadMealsValidCSV(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			m := NewManager(db)
 			err := m.LoadMeals(csv.NewReader(strings.NewReader(test.data)))
+			defer cleanDb(t, db)
 			assert.NoError(t, err)
-			rows := countRows(t, m.getDb(), "meal")
+			rows := countRows(t, m.GetDb(), "meal")
 			assert.Equal(t, test.expRows, rows)
 		})
 	}

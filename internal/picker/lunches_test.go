@@ -2,6 +2,7 @@ package picker
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"io"
 	"log"
@@ -16,6 +17,10 @@ import (
 
 type MockDataManager struct {
 	stored []data.Meal
+}
+
+func (d *MockDataManager) GetDb() *sql.DB {
+	panic("not supported on MockDataManager")
 }
 
 func (d *MockDataManager) Close() error {
