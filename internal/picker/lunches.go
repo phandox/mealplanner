@@ -1,6 +1,7 @@
 package picker
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 
@@ -10,16 +11,21 @@ import (
 const DefaultPeople = 2
 
 type Picker struct {
-	db     *data.MealsDB
+	db     data.Manager
 	people int
+	seed   int64
 }
 
-func NewPicker(db *data.MealsDB, people int) *Picker {
-	return &Picker{db: db, people: people}
+func NewPicker(db data.Manager, people int, seed int64) *Picker {
+	rand.Seed(seed)
+	return &Picker{db: db, people: people, seed: seed}
 }
 
-func (p Picker) Plan(kind string, days int) ([]data.Meal, error) {
-	f := p.db.Meals(kind)
+func (p Picker) PlanRandom(kind string, days int) ([]data.Meal, error) {
+	f, err := p.db.GetMeals(context.TODO(), kind)
+	if err != nil {
+		return nil, err
+	}
 	return p.pick(f, days)
 }
 
@@ -51,7 +57,6 @@ func pickFood(food []data.Meal, minPortions int, maxPortions int, picked *[]bool
 		}
 		(*picked)[idx] = true
 		if portionsOk && daysOk {
-			(*picked)[idx] = true
 			return m, nil
 		}
 	}
@@ -59,7 +64,10 @@ func pickFood(food []data.Meal, minPortions int, maxPortions int, picked *[]bool
 }
 
 func (p Picker) PlanLunches(days int) ([]data.Meal, error) {
-	food := p.db.Meals("lunch")
+	food, err := p.db.GetMeals(context.TODO(), "lunch")
+	if err != nil {
+		return nil, err
+	}
 	week := make([]data.Meal, days)
 	portions := days * p.people
 	picked := make([]bool, len(food))

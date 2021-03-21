@@ -1,12 +1,18 @@
 package data
 
 import (
+	"context"
+	"database/sql"
 	"encoding/csv"
+	"fmt"
+	"io/ioutil"
 	"log"
-	"reflect"
-	"strconv"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const testData = `"name","kind","portions"
@@ -15,156 +21,110 @@ const testData = `"name","kind","portions"
 "dinner 1","dinner","4"
 "snack 1","snack","4"
 `
-const testDataMulti = `"name","kind","portions"
+const testDuplicates = `"name","kind","portions"
 "lunch 1","lunch","4"
-"lunch 2","lunch","4"
-"dinner 1","dinner","4"
-"snack 1","snack","4"
+"lunch 1","lunch","4"
+`
+const testDataMulti = `"name","kind","portions"
+"lunch 1","lunch",4
+"lunch 2","lunch",4
+"dinner 1","dinner",4
+"snack 1","snack",4
 `
 
-func loadMeals(t *testing.T, s string) []Meal {
-	t.Helper()
-	d := csv.NewReader(strings.NewReader(s))
-	_, err := d.Read() // skip header
+const testDb = "testMeals.sqlite"
+
+var db *sql.DB
+
+func setup(dbname string) (*sql.DB, string) {
+	dir, err := ioutil.TempDir("", "mealplanner-integration")
 	if err != nil {
 		log.Fatal(err)
 	}
-	rec, err := d.ReadAll()
+	dbpath := filepath.Join(dir, dbname)
+	db, err := sql.Open("sqlite3", dbpath)
 	if err != nil {
-		t.Fatal("can't read test data")
+		defer os.RemoveAll(dir)
+		log.Fatal(err)
 	}
-	var m []Meal
-	for _, r := range rec {
-		n, err := strconv.Atoi(r[2])
-		if err != nil {
-			panic(err)
-		}
-		m = append(m, Meal{
-			Name:     r[0],
-			Kind:     r[1],
-			Portions: n,
-		})
-	}
-	return m
+	return db, dir
 }
 
-func TestNewMealsDB(t *testing.T) {
+func teardown(db *sql.DB, tmpDir string) {
+	defer os.RemoveAll(tmpDir)
+	err := db.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func cleanDb(t *testing.T, db *sql.DB) {
+	t.Helper()
+	tx, err := db.BeginTx(context.TODO(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//goland:noinspection SqlWithoutWhere
+	_, execErr := tx.Exec("DELETE FROM meal;")
+	if execErr != nil {
+		_ = tx.Rollback()
+		t.Fatal(execErr)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func countRows(t *testing.T, db *sql.DB, table string) int {
+	t.Helper()
+	rows, err := db.Query("SELECT * FROM meal;", table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	for rows.Next() {
+		count++
+	}
+	return count
+}
+
+func TestIntegration_LoadMealsValidCSV(t *testing.T) {
 	tests := []struct {
-		name string
-		err  error
-		data string
+		name    string
+		data    string
+		expRows int
 	}{
 		{
-			"load CSV data",
-			nil,
+			"only unique names",
 			testData,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			expDB := MealsDB{
-				data: loadMeals(t, test.data),
-			}
-			db := NewMealsDB(strings.NewReader(test.data))
-			switch test.err {
-			default:
-				if !reflect.DeepEqual(db.data, expDB.data) {
-					t.Errorf("got %v != want %v", db.data, expDB.data)
-				}
-			}
-		})
-	}
-}
-
-func TestGetMeal(t *testing.T) {
-	tests := []struct {
-		name string
-		kind string
-		want Meal
-	}{
-		{
-			"get lunch meal",
-			"lunch",
-			Meal{
-				Kind: "lunch",
-			},
+			4,
 		},
 		{
-			"get breakfast meal",
-			"breakfast",
-			Meal{
-				Kind: "breakfast",
-			},
-		},
-		{
-			"get snack meal",
-			"snack",
-			Meal{
-				Kind: "snack",
-			},
-		},
-		{
-			"get dinner meal",
-			"dinner",
-			Meal{
-				Kind: "dinner",
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			db := MealsDB{
-				data: loadMeals(t, testData),
-			}
-			got := db.GetMeal(test.kind)
-
-			if got == nil {
-				t.Fatal("unexpected failure: no meal returned")
-			}
-
-			if got.Kind != test.want.Kind {
-				t.Errorf("got %v != want %v", got.Kind, test.want.Kind)
-			}
-		})
-	}
-}
-
-func TestMeals(t *testing.T) {
-	tests := []struct {
-		name string
-		kind string
-		want int
-		data string
-	}{
-		{
-			"single meal in DB",
-			"breakfast",
+			"skip duplicate names",
+			testDuplicates,
 			1,
-			testData,
-		},
-		{
-			"two meals of type in DB",
-			"lunch",
-			2,
-			testDataMulti,
-		},
-		{
-			"mismatch cases of kind",
-			"LUnch",
-			2,
-			testDataMulti,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			db := MealsDB{
-				storage: "",
-				data:    loadMeals(t, test.data),
-			}
-			got := db.Meals(test.kind)
-			if len(got) != test.want {
-				t.Errorf("got %v != want %v elements of %s kind", len(got), test.want, test.kind)
-			}
+			m := NewManager(db)
+			err := m.LoadMeals(csv.NewReader(strings.NewReader(test.data)))
+			defer cleanDb(t, db)
+			assert.NoError(t, err)
+			rows := countRows(t, m.GetDb(), "meal")
+			assert.Equal(t, test.expRows, rows)
 		})
 	}
+}
+
+func TestMain(m *testing.M) {
+	if os.Getenv("CI") != "" {
+		fmt.Println("Skipping package - CI environment")
+		os.Exit(0)
+	}
+	var dir string
+	db, dir = setup(testDb)
+	retCode := m.Run()
+	teardown(db, dir)
+	os.Exit(retCode)
 }

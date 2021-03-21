@@ -1,60 +1,40 @@
 package data
 
 import (
+	"context"
+	"database/sql"
 	"encoding/csv"
+	"errors"
 	"io"
 	"log"
-	"strconv"
-	"strings"
+
+	"github.com/mattn/go-sqlite3"
 )
 
-type MealsDB struct {
-	storage string
-	data    []Meal
-}
+const initDbStmt = `
+CREATE TABLE IF NOT EXISTS meal(
+	id INTEGER PRIMARY KEY, 
+	name TEXT NOT NULL UNIQUE,
+	portions INTEGER,
+	kind TEXT NOT NULL
+);
+`
+const addMealStmt = `
+INSERT INTO meal(name, portions, kind) VALUES(
+ :name,
+ :portions,
+ :kind
+)
+`
 
-func NewMealsDB(r io.Reader) MealsDB {
-	d := csv.NewReader(r)
-	_, err := d.Read() // skip header
-	if err != nil {
-		log.Fatal(err)
-	}
-	recs, err := d.ReadAll()
-	if err != nil {
-		log.Fatal(err)
-	}
-	var m []Meal
-	for _, r := range recs {
-		n, err := strconv.Atoi(r[2])
-		if err != nil {
-			panic(err)
-		}
-		m = append(m, Meal{
-			Name:     r[0],
-			Kind:     r[1],
-			Portions: n,
-		})
-	}
-	return MealsDB{data: m}
-}
+const selectMealStmt = `SELECT name,kind,portions FROM meal WHERE kind = :kind`
 
-func (db MealsDB) GetMeal(kind string) *Meal {
-	for _, m := range db.data {
-		if m.Kind == kind {
-			return &m
-		}
-	}
-	return nil
-}
-
-func (db MealsDB) Meals(kind string) []Meal {
-	var r []Meal
-	for _, m := range db.data {
-		if strings.ToLower(kind) == strings.ToLower(m.Kind) {
-			r = append(r, m)
-		}
-	}
-	return r
+type Manager interface {
+	Close() error
+	AddMeal(ctx context.Context, name string, portions string, kind string) error
+	GetMeals(ctx context.Context, kind string) ([]Meal, error)
+	LoadMeals(reader *csv.Reader) error
+	GetDb() *sql.DB
 }
 
 type Meal struct {
@@ -63,6 +43,86 @@ type Meal struct {
 	Portions int
 }
 
-func (m Meal) IsKind(kind string) bool {
-	return strings.ToLower(kind) == m.Kind
+type manager struct {
+	db *sql.DB
+}
+
+func NewManager(dbpool *sql.DB) Manager {
+	_, err := dbpool.Exec(initDbStmt)
+	if err != nil {
+		log.Fatal("Failed to prepare tables:", err)
+	}
+	return &manager{db: dbpool}
+}
+
+func (m *manager) GetDb() *sql.DB {
+	return m.db
+}
+func (m *manager) Close() error {
+	return m.db.Close()
+}
+
+func (m *manager) AddMeal(ctx context.Context, name string, portions string, kind string) error {
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(
+		ctx,
+		addMealStmt,
+		sql.Named("name", name),
+		sql.Named("portions", portions),
+		sql.Named("kind", kind),
+	)
+	// don't report unique constrain error, continue with operation
+	// todo: add notice here to log?
+	if err != nil && errors.Is(err, sqlite3.ErrConstraintUnique) {
+		return nil
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *manager) GetMeals(ctx context.Context, kind string) ([]Meal, error) {
+	var meals []Meal
+	rows, err := m.db.QueryContext(ctx, selectMealStmt, sql.Named("kind", kind))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m Meal
+		if err = rows.Scan(&m.Name, &m.Kind, &m.Portions); err != nil {
+			return nil, err
+		}
+		meals = append(meals, m)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return meals, nil
+}
+
+func (m *manager) LoadMeals(r *csv.Reader) error {
+	_, err := r.Read()
+	if err != nil {
+		return err
+	}
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = m.AddMeal(context.TODO(), rec[0], rec[2], rec[1])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
