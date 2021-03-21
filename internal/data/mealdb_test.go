@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -117,6 +118,10 @@ func TestIntegration_LoadMealsValidCSV(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	if os.Getenv("CI") != "" {
+		fmt.Println("Skipping package - CI environment")
+		os.Exit(0)
+	}
 	var dir string
 	db, dir = setup(testDb)
 	retCode := m.Run()
